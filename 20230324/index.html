@@ -441,13 +441,22 @@ layout: true
 ---
 
 # CI - What is it?
+* _Continuous_: Changes are being continuously merged and tested.
+* _Integration_: Changes from multiple branches are merged and the integrated result is tested.
+
+.center[**Instead of develop, develop, develop, test, test, test,<br />it is develop, test, develop, test, develop, test.**]
 
 <p align="center">
-<img src="https://www.pagerduty.com/wp-content/uploads/2020/01/continuous-integration-2.png" width="50%" />
+  <img src="https://www.pagerduty.com/wp-content/uploads/2020/01/continuous-integration-2.png" width="35%" />
 </p>
 
+
+
 ???
-Most of the time, used with a version control system like github, but it's not *<mandatory></mandatory>
+
+Software project with multiple developers: change the code in incremental steps rather than having each person work on large changes and having to merge them all at once.
+
+Most of the time, used with a version control system like github, but it's not mandatory
 You can do CI without it: the point is to have the code regularly run, to prevent bugs from arising unnoticed.
 
 ---
@@ -737,12 +746,11 @@ Testing was triggered and run successfully
     "xform,xform_dir",
     [
         (np.diag([1.0, 2.0, 3.0, 1.0]), np.eye(3)),
-        (np.diag([2.0, -1.0, 3.0, 1.0]), np.eye(3)),
+        (np.diag([2.0, -1.0, 3.0, 1.0]), np.diag([1.0, -1.0, 1.0])),
     ],
 )
 def test_dir_cosines(xform, xform_dir):
-    diagonal = np.diag([2.0, 3.0, 1.0, 1.0])
-    assert np.allclose(dir_cosines(diagonal), np.eye(3))
+    assert np.allclose(dir_cosines(xform), xform_dir)
 ```
 
 Running tests locally from `project/src`
@@ -792,34 +800,40 @@ Continuous integration tests failed after our latest commit!
 
 .tiny[
 ```Python
-../test/test_nifti.py ...........................................FF      [100%]
+================================= test session starts ==================================
+../test/test_nifti.py ...........................................FF              [100%]
 
 [...]
-=========================== short test summary info ============================
-FAILED ../test/test_nifti.py::test_dir_cosines[xform0-xform_dir0] - assert False
- +  where False = <function allclose at 0x7f007a3d9000>(array([[0., 1., 0.],\n       [0., 0., 1.],\n       [0., 0., 0.]]), array([[1., 0., 0.],\n       [0., 1., 0.],\n       [0., 0., 1.]]))
- +    where <function allclose at 0x7f007a3d9000> = np.allclose
- +    and   array([[0., 1., 0.],\n       [0., 0., 1.],\n       [0., 0., 0.]]) = dir_cosines(array([[2., 0., 0., 0.],\n       [0., 3., 0., 0.],\n       [0., 0., 1., 0.],\n       [0., 0., 0., 1.]]))
- +    and   array([[1., 0., 0.],\n       [0., 1., 0.],\n       [0., 0., 1.]]) = <function eye at 0x7f00779770a0>(3)
- +      where <function eye at 0x7f00779770a0> = np.eye
-FAILED ../test/test_nifti.py::test_dir_cosines[xform1-xform_dir1] - assert False
- +  where False = <function allclose at 0x7f007a3d9000>(array([[0., 1., 0.],\n       [0., 0., 1.],\n       [0., 0., 0.]]), array([[1., 0., 0.],\n       [0., 1., 0.],\n       [0., 0., 1.]]))
- +    where <function allclose at 0x7f007a3d9000> = np.allclose
- +    and   array([[0., 1., 0.],\n       [0., 0., 1.],\n       [0., 0., 0.]]) = dir_cosines(array([[2., 0., 0., 0.],\n       [0., 3., 0., 0.],\n       [0., 0., 1., 0.],\n       [0., 0., 0., 1.]]))
- +    and   array([[1., 0., 0.],\n       [0., 1., 0.],\n       [0., 0., 1.]]) = <function eye at 0x7f00779770a0>(3)
- +      where <function eye at 0x7f00779770a0> = np.eye
-========================= 2 failed, 43 passed in 0.22s =========================
-Error: Process completed with exit code 1.
+
+    @pytest.mark.parametrize(
+        "xform,xform_dir",
+        [
+            (np.diag([1.0, 2.0, 3.0, 1.0]), np.eye(3)),
+            (np.diag([2.0, -1.0, 3.0, 1.0]), np.diag([1.0, -1.0, 1.0])),
+        ],
+    )
+    def test_dir_cosines(xform, xform_dir):
+>       assert np.allclose(dir_cosines(xform), xform_dir)
+E       assert False
+E        +  where False = <function allclose at 0x7f632cd9adc0>(array([[ 0., -1.,  0.],\n       
+  [ 0.,  0.,  1.],\n       [ 0.,  0.,  0.]]), array([[ 1.,  0.,  0.],\n       [ 0., -1.,  0.],\n       [ 0.,  0.,  1.]]))
+E        +    where <function allclose at 0x7f632cd9adc0> = np.allclose
+E        +    and   array([[ 0., -1.,  0.],\n       [ 0.,  0.,  1.],\n       [ 0.,  0.,  0.]]) = dir_cosines(array([[ 2.,  0.,  0.,  0.],\n      
+ [ 0., -1.,  0.,  0.],\n       [ 0.,  0.,  3.,  0.],\n       [ 0.,  0.,  0.,  1.]]))
+
+../test/test_nifti.py:54: AssertionError
+============================= 2 failed, 43 passed in 0.19s =============================
 ```
 ]
 
 => Our latest change seems to have introduced a bug in `dir_cosines`. Let's check the code.
-
 ```Python
 def dir_cosines(xform):
     """Calculates the orientation of the s/q-form matrix of a NIfTI file."""
     return xform[1:, :-1] / voxel_sizes(xform)
 ```
+
+
 ---
 
 # Bugfixing and pushing
@@ -842,9 +856,9 @@ Everything is back to normal!
 
 .boxed-content[
 .distribute.large[
-* Continuous integration runs your tests automatically
-
-* CI works well when you `push` often! 
+* There is much more to CI than automated testing!
+  * CI is about `pushing` small changes often.
+  * CI is about frequently `merging` changes to a shared branch.
 
 * Check [https://github.com/t-sanchez/CDM-code](https://github.com/t-sanchez/CDM-code) for the examples!
 ]
